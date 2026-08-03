@@ -6,6 +6,7 @@ import express, { type Request, type Response } from 'express';
 import { WhoopClient } from './whoop-client.js';
 import { WhoopDatabase } from './database.js';
 import { WhoopSync } from './sync.js';
+import { registerOAuthStub, requireBearer } from './oauth.js';
 
 interface ToolArguments {
 	days?: number;
@@ -342,6 +343,15 @@ async function main(): Promise<void> {
 	} else {
 		const app = express();
 		app.use(express.json());
+		app.use(express.urlencoded({ extended: true }));
+
+		const baseUrl =
+			process.env.PUBLIC_URL ??
+			(process.env.RAILWAY_PUBLIC_DOMAIN
+				? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+				: `http://localhost:${config.port}`);
+
+		registerOAuthStub(app, baseUrl, config.clientSecret);
 
 		app.get('/callback', async (req: Request, res: Response) => {
 			const code = req.query.code as string | undefined;
@@ -364,7 +374,7 @@ async function main(): Promise<void> {
 			res.json({ status: 'ok', authenticated: Boolean(db.getTokens()) });
 		});
 
-		app.all('/mcp', async (req: Request, res: Response) => {
+		app.all('/mcp', requireBearer(baseUrl, config.clientSecret), async (req: Request, res: Response) => {
 			const sessionId = req.headers['mcp-session-id'] as string | undefined;
 
 			if (req.method === 'DELETE' && sessionId && transports.has(sessionId)) {
