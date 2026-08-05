@@ -314,7 +314,7 @@ export class WhoopDatabase {
 				stmt.run(
 					w.id,
 					w.user_id,
-					w.sport_id,
+					w.sport_id ?? 0,
 					w.start,
 					w.end,
 					w.score_state,
